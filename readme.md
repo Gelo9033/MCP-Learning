@@ -19,5 +19,8 @@ librechat-librechat-...
 
 helm uninstall librechat
 
+Cline
+https://cline.bot/pricing
+
 CONTINUE DEV WITH VSCODE
 https://www.youtube.com/watch?v=he0_W5iCv-I
