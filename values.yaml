@@ -1,0 +1,208 @@
+# =============================================================================
+# CONFIGURACIÓN DE LIBRECHAT PARA MINIKUBE
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# CONFIGURACIÓN GLOBAL
+# -----------------------------------------------------------------------------
+global:
+  librechat:
+    # Secret que contiene las credenciales (CREDS_KEY, JWT_SECRET, etc.)
+    existingSecretName: "librechat-credentials-env"
+    # Nombre de la key en el secret que contiene la API key del proveedor
+    existingSecretApiKey: "OPENAI_API_KEY"
+
+# -----------------------------------------------------------------------------
+# CONFIGURACIÓN DE LIBRECHAT
+# -----------------------------------------------------------------------------
+librechat:
+  # Variables de entorno para LibreChat
+  configEnv:
+    # URI de conexión a MongoDB con ReplicaSet
+    MONGO_URI: "mongodb://librechat-mongodb:27017/LibreChat?directConnection=true"
+    
+    # Habilitar registro de usuarios
+    ALLOW_REGISTRATION: "true"
+    ALLOW_EMAIL_LOGIN: "true"
+    
+    # Configuración de plugins
+    PLUGIN_MODELS: "gpt-4,gpt-4-turbo-preview,gpt-3.5-turbo"
+    DEBUG_PLUGINS: "true"
+    
+    # URL base de la aplicación (ajusta según tu dominio)
+    DOMAIN_CLIENT: "http://localhost:3080"
+    DOMAIN_SERVER: "http://localhost:3080"
+  
+  # Volumen para almacenar imágenes subidas
+  imageVolume:
+    enabled: true
+    size: 2Gi  # Reducido para Minikube
+    accessModes: ReadWriteOnce
+  
+  # Probes mejoradas con más tiempo de espera
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 3080
+    initialDelaySeconds: 90
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+  
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 3080
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# -----------------------------------------------------------------------------
+# CONFIGURACIÓN DE IMAGEN
+# -----------------------------------------------------------------------------
+image:
+  repository: danny-avila/librechat
+  registry: ghcr.io
+  pullPolicy: IfNotPresent
+  tag: "latest"  # O especifica una versión: "v0.8.1"
+
+# -----------------------------------------------------------------------------
+# RECURSOS - Optimizado para Minikube
+# -----------------------------------------------------------------------------
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "500m"
+
+# -----------------------------------------------------------------------------
+# SEGURIDAD
+# -----------------------------------------------------------------------------
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+  runAsNonRoot: true
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# -----------------------------------------------------------------------------
+# SERVICIO E INGRESS
+# -----------------------------------------------------------------------------
+service:
+  type: NodePort  # Cambiado a NodePort para Minikube
+  port: 3080
+  targetPort: 3080
+  containerPort: 3080
+  nodePort: 30080  # Puerto accesible externamente en Minikube
+
+ingress:
+  enabled: false  # Deshabilitado para simplificar en Minikube
+  # Si quieres habilitarlo en el futuro:
+  # enabled: true
+  # className: "nginx"
+  # hosts:
+  #   - host: chat.local
+  #     paths:
+  #       - path: /
+  #         pathType: Prefix
+
+# -----------------------------------------------------------------------------
+# MONGODB - Configuración Simplificada
+# -----------------------------------------------------------------------------
+mongodb:
+  enabled: true
+  
+  image:
+    registry: docker.io
+    repository: mongo
+    tag: "7.0"  # Versión 7.0 es más estable para desarrollo
+  
+  # Sin autenticación para desarrollo
+  auth:
+    enabled: false
+  
+  # Sin persistencia para facilitar desarrollo (⚠️ datos se pierden al reiniciar)
+  persistence:
+    enabled: false
+  
+  # Recursos limitados para Minikube
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  
+  # Security context
+  podSecurityContext:
+    fsGroup: 999
+    runAsUser: 999
+  
+  containerSecurityContext:
+    runAsUser: 999
+    runAsNonRoot: true
+
+# -----------------------------------------------------------------------------
+# MEILISEARCH - Motor de búsqueda
+# -----------------------------------------------------------------------------
+meilisearch:
+  enabled: true
+  
+  image: 
+    tag: "v1.10"  # Versión estable
+  
+  # Sin persistencia para desarrollo
+  persistence:
+    enabled: false
+  
+  # Recursos limitados
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+  
+  # Usa el secret existente para MEILI_MASTER_KEY
+  auth:
+    existingMasterKeySecret: "librechat-credentials-env"
+
+# -----------------------------------------------------------------------------
+# RAG API - Deshabilitado por defecto
+# -----------------------------------------------------------------------------
+librechat-rag-api:
+  enabled: false
+
+# -----------------------------------------------------------------------------
+# OPCIONES AVANZADAS
+# -----------------------------------------------------------------------------
+# Service Account
+serviceAccount:
+  create: true
+  automount: true
+
+# Réplicas
+replicaCount: 1
+
+# Estrategia de actualización
+updateStrategy:
+  type: RollingUpdate
+
+# Auto-escalado deshabilitado
+autoscaling:
+  enabled: false
+
+# Sin afinidad ni tolerancias especiales
+nodeSelector: {}
+tolerations: []
+affinity: {}
