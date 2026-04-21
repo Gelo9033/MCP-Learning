@@ -2,7 +2,7 @@ https://www.librechat.ai/toolkit/creds_generator
 
 kubectl apply -f secrets.yaml
 
-# Instalación básica
+# Instalación básica.
 
 helm install librechat oci://ghcr.io/danny-avila/librechat-chart/librechat
 
